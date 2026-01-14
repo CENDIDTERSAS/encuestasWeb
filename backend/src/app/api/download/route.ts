@@ -37,6 +37,25 @@ const buildFileName = (payload: Record<string, unknown>) => {
     .replace(/[\\/:*?"<>|]/g, "_");
 };
 
+const toReadableStream = (data: unknown) => {
+  if (data instanceof Readable) {
+    return data;
+  }
+  const maybeWebStream = data as { getReader?: () => any };
+  if (maybeWebStream && typeof maybeWebStream.getReader === "function") {
+    const reader = maybeWebStream.getReader();
+    const iterator = async function* () {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        yield value;
+      }
+    };
+    return Readable.from(iterator());
+  }
+  return Readable.from(data as AsyncIterable<Uint8Array>);
+};
+
 export async function OPTIONS(request: NextRequest) {
   const headers = getCorsHeaders(request.headers.get("origin"));
   return NextResponse.json({}, { status: 200, headers });
@@ -102,12 +121,7 @@ export async function GET(request: NextRequest) {
         { fileId, alt: "media" },
         { responseType: "stream" },
       );
-      const dataStream =
-        response.data instanceof Readable
-          ? response.data
-          : Readable.fromWeb(
-              response.data as unknown as ReadableStream,
-            );
+      const dataStream = toReadableStream(response.data);
       archive.append(dataStream, {
         name: fileName,
       });
