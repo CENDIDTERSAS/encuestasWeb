@@ -102,7 +102,13 @@ export async function GET(request: NextRequest) {
         { fileId, alt: "media" },
         { responseType: "stream" },
       );
-      archive.append(response.data as NodeJS.ReadableStream, {
+      const dataStream =
+        response.data instanceof Readable
+          ? response.data
+          : Readable.fromWeb(
+              response.data as unknown as ReadableStream,
+            );
+      archive.append(dataStream, {
         name: fileName,
       });
     } catch (err) {
