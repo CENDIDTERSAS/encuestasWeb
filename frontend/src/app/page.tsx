@@ -46,6 +46,18 @@ const formatDateTime = (value: string) => {
   });
 };
 
+const resolveApiBase = () => {
+  const raw = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    return raw.replace(/\/+$/, "");
+  }
+  const cleaned = raw.replace(/^\/+/, "");
+  return `https://${cleaned}`.replace(/\/+$/, "");
+};
+
+const API_BASE = resolveApiBase();
+
 const buildPdfLink = (value?: string | null) => {
   if (!value) return null;
   if (value.startsWith("http://") || value.startsWith("https://")) {
@@ -120,7 +132,7 @@ export default function HomePage() {
           end: `${endDate}T23:59:59`,
         });
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/encuestas?${params.toString()}`,
+          `${API_BASE}/api/encuestas?${params.toString()}`,
           {
             signal: controller.signal,
             headers: {
@@ -239,7 +251,7 @@ export default function HomePage() {
         end: `${endDate}T23:59:59`,
       });
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/download?${params.toString()}`,
+        `${API_BASE}/api/download?${params.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
