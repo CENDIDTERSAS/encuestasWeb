@@ -110,6 +110,9 @@ export default function HomePage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>([
+    "all",
+  ]);
   const router = useRouter();
 
   useEffect(() => {
@@ -158,15 +161,46 @@ export default function HomePage() {
     return () => controller.abort();
   }, [tipo, servicio, startDate, endDate]);
 
-  const serviciosDisponibles = useMemo(() => {
-    const set = new Set<string>();
-    encuestas.forEach((row) => {
-      if (row.servicio) {
-        set.add(row.servicio);
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchServicios = async () => {
+      try {
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+        if (!token) return;
+        const params = new URLSearchParams({ tipo });
+        const response = await fetch(`${API_BASE}/api/servicios?${params.toString()}`, {
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error || "Error al cargar servicios");
+        }
+        const values = Array.isArray(payload.data) ? payload.data : [];
+        setServiciosDisponibles(["all", ...values]);
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+        const set = new Set<string>();
+        encuestas.forEach((row) => {
+          if (row.servicio) {
+            set.add(row.servicio);
+          }
+        });
+        setServiciosDisponibles([
+          "all",
+          ...Array.from(set).sort((a, b) => a.localeCompare(b)),
+        ]);
+        console.error(error);
       }
-    });
-    return ["all", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [encuestas]);
+    };
+
+    fetchServicios();
+    return () => controller.abort();
+  }, [encuestas, tipo]);
 
   const totalEncuestas = encuestas.length;
   const tipoLabel =
@@ -191,6 +225,15 @@ export default function HomePage() {
     const map = new Map<string, number>();
     encuestas.forEach((row) => {
       const key = row.servicio || "Sin servicio";
+      map.set(key, (map.get(key) ?? 0) + 1);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [encuestas]);
+
+  const countsByOperator = useMemo(() => {
+    const map = new Map<string, number>();
+    encuestas.forEach((row) => {
+      const key = row.operator_name || "Sin operador";
       map.set(key, (map.get(key) ?? 0) + 1);
     });
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
@@ -516,38 +559,75 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.5)]">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Ranking por servicio
-                </h2>
-                <div className="mt-4 space-y-4">
-                  {countsByService.length === 0 && (
-                    <p className="text-sm text-slate-500">
-                      Aun no hay datos para mostrar.
-                    </p>
-                  )}
-                  {countsByService.map(([name, value]) => {
-                    const ratio = totalEncuestas ? value / totalEncuestas : 0;
-                    return (
-                      <div
-                        key={name}
-                        className="rounded-2xl bg-white px-4 py-3"
-                      >
-                        <div className="flex items-center justify-between text-sm text-slate-600">
-                          <span className="font-semibold text-slate-900">
-                            {name}
-                          </span>
-                          <span>{value}</span>
+              <div className="grid gap-6">
+                <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.5)]">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Ranking por servicio
+                  </h2>
+                  <div className="mt-4 space-y-4">
+                    {countsByService.length === 0 && (
+                      <p className="text-sm text-slate-500">
+                        Aun no hay datos para mostrar.
+                      </p>
+                    )}
+                    {countsByService.map(([name, value]) => {
+                      const ratio = totalEncuestas ? value / totalEncuestas : 0;
+                      return (
+                        <div
+                          key={name}
+                          className="rounded-2xl bg-white px-4 py-3"
+                        >
+                          <div className="flex items-center justify-between text-sm text-slate-600">
+                            <span className="font-semibold text-slate-900">
+                              {name}
+                            </span>
+                            <span>{value}</span>
+                          </div>
+                          <div className="mt-2 h-2 w-full rounded-full bg-emerald-50">
+                            <div
+                              className="h-2 rounded-full bg-amber-400"
+                              style={{ width: `${Math.round(ratio * 100)}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="mt-2 h-2 w-full rounded-full bg-emerald-50">
-                          <div
-                            className="h-2 rounded-full bg-amber-400"
-                            style={{ width: `${Math.round(ratio * 100)}%` }}
-                          />
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.5)]">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Encuestas por operador
+                  </h2>
+                  <div className="mt-4 space-y-4">
+                    {countsByOperator.length === 0 && (
+                      <p className="text-sm text-slate-500">
+                        Aun no hay datos para mostrar.
+                      </p>
+                    )}
+                    {countsByOperator.map(([name, value]) => {
+                      const ratio = totalEncuestas ? value / totalEncuestas : 0;
+                      return (
+                        <div
+                          key={name}
+                          className="rounded-2xl bg-white px-4 py-3"
+                        >
+                          <div className="flex items-center justify-between text-sm text-slate-600">
+                            <span className="font-semibold text-slate-900">
+                              {name}
+                            </span>
+                            <span>{value}</span>
+                          </div>
+                          <div className="mt-2 h-2 w-full rounded-full bg-emerald-50">
+                            <div
+                              className="h-2 rounded-full bg-sky-400"
+                              style={{ width: `${Math.round(ratio * 100)}%` }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </section>
