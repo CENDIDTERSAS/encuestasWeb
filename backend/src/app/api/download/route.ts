@@ -113,6 +113,7 @@ export async function GET(request: NextRequest) {
   const passThrough = new PassThrough();
   archive.pipe(passThrough);
 
+  const errorLines: string[] = [];
   for (const row of rows) {
     const fileId = row.pdf_drive_path as string;
     const fileName = buildFileName(row.payload as Record<string, unknown>);
@@ -126,11 +127,12 @@ export async function GET(request: NextRequest) {
         name: fileName,
       });
     } catch (err) {
-      archive.append(
-        `No se pudo descargar el archivo ${fileId}.`,
-        { name: `errores/${fileId}.txt` },
-      );
+      errorLines.push(`No se pudo descargar el archivo ${fileId}.`);
     }
+  }
+
+  if (errorLines.length > 0) {
+    archive.append(errorLines.join("\n"), { name: "errores.txt" });
   }
 
   archive.finalize();

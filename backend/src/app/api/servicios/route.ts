@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
+
+const supabaseUrl = process.env.SUPABASE_URL ?? "";
+const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const serviceClient = createClient(supabaseUrl, supabaseServiceRole, {
+  auth: { persistSession: false },
+});
 
 const getCorsHeaders = (origin: string | null) => {
   const allowed = process.env.ALLOWED_ORIGIN ?? "*";
@@ -29,7 +36,15 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const tipo = searchParams.get("tipo");
 
-  let query = auth.dataClient.from("encuestas").select("servicio");
+  const { data: perfil } = await serviceClient
+    .from("usuarios")
+    .select("rol")
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  const isAdmin = (perfil?.rol ?? "").toString().toLowerCase() === "admin";
+
+  const baseClient = isAdmin ? serviceClient : auth.dataClient;
+  let query = baseClient.from("encuestas").select("servicio");
   if (tipo) {
     query = query.eq("tipo", tipo);
   }

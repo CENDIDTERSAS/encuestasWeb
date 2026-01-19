@@ -113,6 +113,8 @@ export default function HomePage() {
   const [serviciosDisponibles, setServiciosDisponibles] = useState<string[]>([
     "all",
   ]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
   const router = useRouter();
 
   useEffect(() => {
@@ -162,6 +164,10 @@ export default function HomePage() {
   }, [tipo, servicio, startDate, endDate]);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [tipo, servicio, startDate, endDate]);
+
+  useEffect(() => {
     const controller = new AbortController();
 
     const fetchServicios = async () => {
@@ -203,6 +209,11 @@ export default function HomePage() {
   }, [encuestas, tipo]);
 
   const totalEncuestas = encuestas.length;
+  const totalPages = Math.max(1, Math.ceil(totalEncuestas / pageSize));
+  const paginatedEncuestas = encuestas.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
   const tipoLabel =
     tipo === "satisfaccion" ? "Satisfaccion" : "Mamografia";
 
@@ -527,7 +538,7 @@ export default function HomePage() {
                     {periodKeys.length} periodos
                   </span>
                 </div>
-                <div className="mt-4 grid gap-4">
+                <div className="mt-4 grid max-h-[320px] gap-4 overflow-y-auto pr-1">
                   {periodKeys.length === 0 && (
                     <p className="text-sm text-slate-500">
                       No hay datos para el rango seleccionado.
@@ -564,7 +575,7 @@ export default function HomePage() {
                   <h2 className="text-lg font-semibold text-slate-900">
                     Ranking por servicio
                   </h2>
-                  <div className="mt-4 space-y-4">
+                  <div className="mt-4 max-h-[320px] space-y-4 overflow-y-auto pr-1">
                     {countsByService.length === 0 && (
                       <p className="text-sm text-slate-500">
                         Aun no hay datos para mostrar.
@@ -599,7 +610,7 @@ export default function HomePage() {
                   <h2 className="text-lg font-semibold text-slate-900">
                     Encuestas por operador
                   </h2>
-                  <div className="mt-4 space-y-4">
+                  <div className="mt-4 max-h-[320px] space-y-4 overflow-y-auto pr-1">
                     {countsByOperator.length === 0 && (
                       <p className="text-sm text-slate-500">
                         Aun no hay datos para mostrar.
@@ -682,7 +693,9 @@ export default function HomePage() {
                   Tabla de encuestas
                 </h2>
                 <span className="text-sm text-slate-500">
-                  {isLoading ? "Cargando..." : `${encuestas.length} registros`}
+                  {isLoading
+                    ? "Cargando..."
+                    : `${encuestas.length} registros | 50 por pagina`}
                 </span>
               </div>
               <div className="mt-4 overflow-x-auto">
@@ -714,7 +727,7 @@ export default function HomePage() {
                     </tr>
                   </thead>
                   <tbody className="uppercase">
-                    {encuestas.map((row) => {
+                    {paginatedEncuestas.map((row) => {
                       const payload = row.payload || {};
                       return (
                         <tr
@@ -822,6 +835,33 @@ export default function HomePage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                <span>
+                  Pagina {currentPage} de {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    className="rounded-full border border-emerald-100 px-3 py-1 font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    disabled={currentPage >= totalPages}
+                    onClick={() =>
+                      setCurrentPage((prev) =>
+                        Math.min(totalPages, prev + 1),
+                      )
+                    }
+                    className="rounded-full border border-emerald-100 px-3 py-1 font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Siguiente
+                  </button>
+                </div>
               </div>
             </section>
           </>
