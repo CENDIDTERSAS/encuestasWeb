@@ -87,8 +87,8 @@ const getPeriodKey = (dateValue: string, period: Periodo) => {
 
 const buildDateRange = () => {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const start = new Date(2000, 0, 1);
+  const end = now;
   return {
     start: start.toISOString().slice(0, 10),
     end: end.toISOString().slice(0, 10),
