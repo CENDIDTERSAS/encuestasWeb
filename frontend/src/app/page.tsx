@@ -223,6 +223,12 @@ export default function HomePage() {
     return Array.from(set).sort();
   }, [encuestas, periodo]);
 
+  const monthlyKeys = useMemo(() => {
+    const set = new Set<string>();
+    encuestas.forEach((row) => set.add(getPeriodKey(row.fecha, "mensual")));
+    return Array.from(set).sort();
+  }, [encuestas]);
+
   const countsByPeriod = useMemo(() => {
     const map = new Map<string, number>();
     encuestas.forEach((row) => {
@@ -248,6 +254,136 @@ export default function HomePage() {
       map.set(key, (map.get(key) ?? 0) + 1);
     });
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [encuestas]);
+
+  const ratingDistribution = useMemo(() => {
+    const labels = [
+      "Muy Malo",
+      "Malo",
+      "Regular",
+      "Bueno",
+      "Muy Bueno",
+    ];
+    const map = new Map<string, number>();
+    labels.forEach((label) => map.set(label, 0));
+
+    encuestas.forEach((row) => {
+      const payload = row.payload ?? {};
+      const values: number[] = [];
+      const keys = [
+        "tratoColaboradoresRating",
+        "asignacionCitaRating",
+        "cumplimientoHoraRating",
+        "experienciaCendidterRating",
+      ];
+      keys.forEach((key) => {
+        const raw = (payload as Record<string, unknown>)[key];
+        const numberValue = Number(raw);
+        if (!Number.isNaN(numberValue) && numberValue > 0) {
+          values.push(numberValue);
+        }
+      });
+      if (values.length === 0) return;
+      const avg =
+        values.reduce((sum, value) => sum + value, 0) / values.length;
+      const rounded = Math.min(5, Math.max(1, Math.round(avg)));
+      const label = labels[rounded - 1];
+      map.set(label, (map.get(label) ?? 0) + 1);
+    });
+
+    return Array.from(map.entries()).filter(([, value]) => value > 0);
+  }, [encuestas]);
+
+  const recommendationDistribution = useMemo(() => {
+    const labels = [
+      "Definitivamente Si",
+      "Probablemente Si",
+      "Probablemente No",
+      "Definitivamente No",
+    ];
+    const map = new Map<string, number>();
+    labels.forEach((label) => map.set(label, 0));
+
+    encuestas.forEach((row) => {
+      const payload = row.payload ?? {};
+      const raw = (payload as Record<string, unknown>).recomendacion;
+      const value = typeof raw === "string" ? raw : "";
+      if (!value) return;
+      if (!map.has(value)) {
+        map.set(value, 0);
+      }
+      map.set(value, (map.get(value) ?? 0) + 1);
+    });
+
+    return Array.from(map.entries()).filter(([, value]) => value > 0);
+  }, [encuestas]);
+
+  const ratingMonthlyMatrix = useMemo(() => {
+    const labels = [
+      "Muy Malo",
+      "Malo",
+      "Regular",
+      "Bueno",
+      "Muy Bueno",
+    ];
+    const matrix = new Map<string, Map<string, number>>();
+    labels.forEach((label) => matrix.set(label, new Map()));
+
+    encuestas.forEach((row) => {
+      const payload = row.payload ?? {};
+      const values: number[] = [];
+      const keys = [
+        "tratoColaboradoresRating",
+        "asignacionCitaRating",
+        "cumplimientoHoraRating",
+        "experienciaCendidterRating",
+      ];
+      keys.forEach((key) => {
+        const raw = (payload as Record<string, unknown>)[key];
+        const numberValue = Number(raw);
+        if (!Number.isNaN(numberValue) && numberValue > 0) {
+          values.push(numberValue);
+        }
+      });
+      if (values.length === 0) return;
+      const avg =
+        values.reduce((sum, value) => sum + value, 0) / values.length;
+      const rounded = Math.min(5, Math.max(1, Math.round(avg)));
+      const label = labels[rounded - 1];
+      const periodKey = getPeriodKey(row.fecha, "mensual");
+      const rowMap = matrix.get(label) ?? new Map();
+      rowMap.set(periodKey, (rowMap.get(periodKey) ?? 0) + 1);
+      matrix.set(label, rowMap);
+    });
+
+    return matrix;
+  }, [encuestas]);
+
+  const recommendationMonthlyMatrix = useMemo(() => {
+    const labels = [
+      "Definitivamente Si",
+      "Probablemente Si",
+      "Probablemente No",
+      "Definitivamente No",
+    ];
+    const matrix = new Map<string, Map<string, number>>();
+    labels.forEach((label) => matrix.set(label, new Map()));
+
+    encuestas.forEach((row) => {
+      const payload = row.payload ?? {};
+      const raw = (payload as Record<string, unknown>).recomendacion;
+      const value = typeof raw === "string" ? raw : "";
+      if (!value) return;
+      if (!matrix.has(value)) {
+        matrix.set(value, new Map());
+      }
+      const periodKey = getPeriodKey(row.fecha, "mensual");
+      const rowMap = matrix.get(value) ?? new Map();
+      rowMap.set(periodKey, (rowMap.get(periodKey) ?? 0) + 1);
+      matrix.set(value, rowMap);
+    });
+
+    return matrix;
   }, [encuestas]);
 
   const servicePeriodMatrix = useMemo(() => {
@@ -532,7 +668,7 @@ export default function HomePage() {
               <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.5)]">
                 <div className="flex items-center justify-between gap-4">
                   <h2 className="text-lg font-semibold text-slate-900">
-                    Conteo por {periodLabels[periodo]}
+                    Estadistica {periodLabels[periodo].toLowerCase()}
                   </h2>
                   <span className="text-sm text-slate-500">
                     {periodKeys.length} periodos
@@ -639,6 +775,150 @@ export default function HomePage() {
                       );
                     })}
                   </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.5)]">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Respuestas por calificacion
+                </h2>
+                <div className="mt-4 max-h-[260px] space-y-4 overflow-y-auto pr-1">
+                  {ratingDistribution.length === 0 && (
+                    <p className="text-sm text-slate-500">
+                      No hay respuestas con calificacion.
+                    </p>
+                  )}
+                  {ratingDistribution.map(([name, value]) => {
+                    const ratio = totalEncuestas ? value / totalEncuestas : 0;
+                    return (
+                      <div
+                        key={name}
+                        className="rounded-2xl bg-white px-4 py-3"
+                      >
+                        <div className="flex items-center justify-between text-sm text-slate-600">
+                          <span className="font-semibold text-slate-900">
+                            {name}
+                          </span>
+                          <span>{value}</span>
+                        </div>
+                        <div className="mt-2 h-2 w-full rounded-full bg-emerald-50">
+                          <div
+                            className="h-2 rounded-full bg-emerald-400"
+                            style={{ width: `${Math.round(ratio * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-5 overflow-x-auto">
+                  <table className="min-w-full border-separate border-spacing-y-2 text-xs">
+                    <thead>
+                      <tr className="text-left text-slate-500">
+                        <th className="px-3 py-2">Calificacion</th>
+                        {monthlyKeys.map((key) => (
+                          <th key={key} className="px-3 py-2">
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(ratingMonthlyMatrix.entries()).map(
+                        ([label, values]) => (
+                          <tr
+                            key={label}
+                            className="rounded-2xl bg-white shadow-sm"
+                          >
+                            <td className="px-3 py-2 font-semibold text-slate-900">
+                              {label}
+                            </td>
+                            {monthlyKeys.map((key) => (
+                              <td
+                                key={key}
+                                className="px-3 py-2 text-slate-600"
+                              >
+                                {values.get(key) ?? 0}
+                              </td>
+                            ))}
+                          </tr>
+                        ),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.5)]">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Respuestas de recomendacion
+                </h2>
+                <div className="mt-4 max-h-[260px] space-y-4 overflow-y-auto pr-1">
+                  {recommendationDistribution.length === 0 && (
+                    <p className="text-sm text-slate-500">
+                      No hay respuestas registradas.
+                    </p>
+                  )}
+                  {recommendationDistribution.map(([name, value]) => {
+                    const ratio = totalEncuestas ? value / totalEncuestas : 0;
+                    return (
+                      <div
+                        key={name}
+                        className="rounded-2xl bg-white px-4 py-3"
+                      >
+                        <div className="flex items-center justify-between text-sm text-slate-600">
+                          <span className="font-semibold text-slate-900">
+                            {name}
+                          </span>
+                          <span>{value}</span>
+                        </div>
+                        <div className="mt-2 h-2 w-full rounded-full bg-emerald-50">
+                          <div
+                            className="h-2 rounded-full bg-emerald-300"
+                            style={{ width: `${Math.round(ratio * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-5 overflow-x-auto">
+                  <table className="min-w-full border-separate border-spacing-y-2 text-xs">
+                    <thead>
+                      <tr className="text-left text-slate-500">
+                        <th className="px-3 py-2">Recomendacion</th>
+                        {monthlyKeys.map((key) => (
+                          <th key={key} className="px-3 py-2">
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(recommendationMonthlyMatrix.entries()).map(
+                        ([label, values]) => (
+                          <tr
+                            key={label}
+                            className="rounded-2xl bg-white shadow-sm"
+                          >
+                            <td className="px-3 py-2 font-semibold text-slate-900">
+                              {label}
+                            </td>
+                            {monthlyKeys.map((key) => (
+                              <td
+                                key={key}
+                                className="px-3 py-2 text-slate-600"
+                              >
+                                {values.get(key) ?? 0}
+                              </td>
+                            ))}
+                          </tr>
+                        ),
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </section>
