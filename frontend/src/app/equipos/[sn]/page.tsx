@@ -143,7 +143,7 @@ export default function DetalleEquipoPage({ params }: { params: Promise<{ sn: st
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">S/N</p>
-                                            <p className="text-sm font-bold text-slate-700">{equipo.sn}</p>
+                                            <p className="text-sm font-bold text-slate-700">{equipo.numero_serie}</p>
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Riesgo</p>
