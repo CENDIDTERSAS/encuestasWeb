@@ -114,8 +114,45 @@ export default function HomePage() {
     "all",
   ]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [permissions, setPermissions] = useState<{
+    equipos: boolean;
+    satisfaction: boolean;
+  }>({ equipos: false, satisfaction: false });
+  const [isPermissionsLoading, setIsPermissionsLoading] = useState(true);
   const pageSize = 50;
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      try {
+        const session = await supabase.auth.getSession();
+        if (!session.data.session) return;
+        const userId = session.data.session.user.id;
+
+        const { data, error } = await supabase
+          .from("user_modules")
+          .select("module_key,enabled")
+          .eq("user_id", userId);
+
+        if (error) throw error;
+
+        const perms = { equipos: false, satisfaction: false };
+        if (data) {
+          data.forEach((row) => {
+            if (row.module_key === "equiposBiomedicos") perms.equipos = row.enabled === true;
+            if (row.module_key === "satisfaction") perms.satisfaction = row.enabled === true;
+          });
+        }
+        setPermissions(perms);
+      } catch (err) {
+        console.error("Error fetching permissions:", err);
+      } finally {
+        setIsPermissionsLoading(false);
+      }
+    };
+
+    fetchPermissions();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -477,68 +514,97 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen px-4 py-10 sm:px-8 lg:px-14">
-      <div className="mx-auto flex w-full flex-col gap-8">
-        <header className="relative overflow-hidden rounded-3xl border border-emerald-100 bg-white p-8 shadow-[0_30px_80px_-50px_rgba(15,23,42,0.6)]">
-          <div className="absolute -right-16 -top-10 h-40 w-40 rounded-full bg-emerald-100 blur-3xl" />
-          <div className="absolute -bottom-16 -left-8 h-36 w-36 rounded-full bg-emerald-50 blur-3xl" />
-          <div className="relative flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <span className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-600">
-                  CENDIDTER S.A.S
-                </span>
-                <h1 className="text-balance font-[var(--font-display)] text-4xl font-semibold text-slate-900 sm:text-5xl">
-                  Panel de Encuestas
-                </h1>
+    <main className="min-h-screen px-4 pb-20 pt-10 sm:px-8 lg:px-14 premium-gradient-bg">
+      <div className="flex w-full flex-col gap-10">
+        <header className="relative overflow-hidden rounded-3xl border border-white/40 bg-white/60 p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] backdrop-blur-xl">
+          <div className="absolute -right-16 -top-10 h-40 w-40 rounded-full bg-emerald-100/50 blur-3xl animate-float" />
+          <div className="absolute -bottom-16 -left-8 h-36 w-36 rounded-full bg-blue-100/50 blur-3xl" />
+
+          <div className="relative flex flex-col gap-6">
+            <div className="flex flex-wrap items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-white p-3 shadow-lg shadow-emerald-200">
+                  <img src="/logoApp.png" alt="Logo" className="h-auto w-full object-contain" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-600">
+                    CENDIDTER S.A.S
+                  </span>
+                  <h1 className="text-balance font-[var(--font-display)] text-3xl font-bold text-slate-900 sm:text-4xl">
+                    Panel Inteligente
+                  </h1>
+                </div>
               </div>
-              {isAuthed && (
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  disabled={isSigningOut}
-                  className="inline-flex items-center gap-2 rounded-full border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+
+              <div className="flex items-center gap-3">
+                {isAuthed && (
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    disabled={isSigningOut}
+                    className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition-all hover:bg-red-100 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                    <polyline points="16 17 21 12 16 7" />
-                    <line x1="21" x2="9" y1="12" y2="12" />
-                  </svg>
-                  {isSigningOut ? "Cerrando..." : "Cerrar sesion"}
-                </button>
-              )}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" x2="9" y1="12" y2="12" />
+                    </svg>
+                    {isSigningOut ? "Saliendo..." : "Cerrar Sesión"}
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
-                Total filtrado: {totalEncuestas}
+
+            {/* Premium Navigation Modules */}
+            {!isPermissionsLoading && (
+              <nav className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {permissions.satisfaction && (
+                  <Link href="/" className="group flex items-center gap-4 rounded-2xl border border-emerald-100 bg-white/80 p-4 transition-all hover:border-emerald-400 hover:bg-white hover:shadow-xl">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 transition-transform group-hover:scale-110">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">Dashboard de Encuestas</h3>
+                      <p className="text-xs text-slate-500">Satisfacción y Mamografías</p>
+                    </div>
+                  </Link>
+                )}
+
+                {permissions.equipos && (
+                  <Link href="/equipos" className="group flex items-center gap-4 rounded-2xl border border-slate-100 bg-white/80 p-4 transition-all hover:border-blue-400 hover:bg-white hover:shadow-xl">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600 transition-transform group-hover:scale-110">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">Equipos Biomédicos</h3>
+                      <p className="text-xs text-slate-500">Gestión y Mantenimientos</p>
+                    </div>
+                    <div className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-blue-50 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                    </div>
+                  </Link>
+                )}
+
+                {!permissions.satisfaction && !permissions.equipos && (
+                  <div className="col-span-full rounded-2xl bg-amber-50 p-4 text-center text-sm font-medium text-amber-700 ring-1 ring-amber-100">
+                    ⚠️ No tienes módulos asignados. Contacta al administrador desde la App.
+                  </div>
+                )}
+              </nav>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500">
+              <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700 ring-1 ring-emerald-100">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Muestras: {totalEncuestas}
               </span>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                Tipo: {tipoLabel}
-              </span>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                Servicio: {servicio === "all" ? "Todos" : servicio}
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">
+                Filtro: {tipoLabel}
               </span>
               {lastSync && (
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                  Actualizado: {formatDateTime(lastSync)}
+                <span className="ml-auto text-slate-400">
+                  Última actualización: {formatDateTime(lastSync)}
                 </span>
-              )}
-              {!isAuthed && (
-                <Link
-                  href="/login"
-                  className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50"
-                >
-                  Iniciar sesion
-                </Link>
               )}
             </div>
           </div>
@@ -546,118 +612,101 @@ export default function HomePage() {
 
         {isAuthed && (
           <>
-            <section className="grid gap-6 rounded-3xl border border-emerald-100 bg-white p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.5)] lg:grid-cols-2">
-              <div className="flex flex-col gap-4">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Filtros principales
-                </h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-                    Tipo de encuesta
+            <section className="grid gap-8 rounded-[2rem] border border-white/40 bg-white/40 p-8 shadow-sm backdrop-blur-md lg:grid-cols-2">
+              <div className="flex flex-col gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <h2 className="text-xl font-bold text-slate-900">Configuración de Filtros</h2>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Tipo de encuesta</label>
                     <select
                       value={tipo}
-                      onChange={(event) =>
-                        setTipo(
-                          event.target.value as "satisfaccion" | "mamografia",
-                        )
-                      }
-                      className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-emerald-400 focus:outline-none"
+                      onChange={(event) => setTipo(event.target.value as "satisfaccion" | "mamografia")}
+                      className="rounded-2xl border-none bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm ring-1 ring-slate-200 transition-all focus:ring-2 focus:ring-emerald-500"
                     >
-                      <option value="satisfaccion">
-                        Encuestas de Satisfaccion
-                      </option>
-                      <option value="mamografia">
-                        Encuestas de Mamografia
-                      </option>
+                      <option value="satisfaccion">📊 Satisfacción General</option>
+                      <option value="mamografia">🎀 Mamografía</option>
                     </select>
-                  </label>
-                  <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-                    Servicio
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Servicio</label>
                     <select
                       value={servicio}
                       onChange={(event) => setServicio(event.target.value)}
-                      className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-emerald-400 focus:outline-none"
+                      className="rounded-2xl border-none bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm ring-1 ring-slate-200 transition-all focus:ring-2 focus:ring-emerald-500"
                     >
                       {serviciosDisponibles.map((item) => (
                         <option key={item} value={item}>
-                          {item === "all" ? "Todos los servicios" : item}
+                          {item === "all" ? "🌐 Todos los servicios" : item}
                         </option>
                       ))}
                     </select>
-                  </label>
-                  <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-                    Desde
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Desde</label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(event) => setStartDate(event.target.value)}
-                      className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-emerald-400 focus:outline-none"
+                      className="rounded-2xl border-none bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm ring-1 ring-slate-200 transition-all focus:ring-2 focus:ring-emerald-500"
                     />
-                  </label>
-                  <label className="flex flex-col gap-2 text-sm font-medium text-slate-600">
-                    Hasta
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Hasta</label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(event) => setEndDate(event.target.value)}
-                      className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-emerald-400 focus:outline-none"
+                      className="rounded-2xl border-none bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm ring-1 ring-slate-200 transition-all focus:ring-2 focus:ring-emerald-500"
                     />
-                  </label>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-4">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Agrupaciones y periodos
-                </h2>
-                <div className="flex flex-wrap gap-3">
-                  {(Object.keys(periodLabels) as Periodo[]).map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => setPeriodo(item)}
-                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                        periodo === item
-                          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200/60"
-                          : "border border-emerald-100 bg-white text-emerald-700 hover:bg-emerald-50"
-                      }`}
-                    >
-                      {periodLabels[item]}
-                    </button>
-                  ))}
+
+              <div className="flex flex-col justify-between gap-6 border-slate-100 lg:border-l lg:pl-8">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full bg-blue-500" />
+                    <h2 className="text-xl font-bold text-slate-900">Acciones y Periodos</h2>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.keys(periodLabels) as Periodo[]).map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setPeriodo(item)}
+                        className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${periodo === item
+                          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100"
+                          : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                          }`}
+                      >
+                        {periodLabels[item]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm text-white">
-                  Se muestran conteos por{" "}
-                  {periodLabels[periodo].toLowerCase()} para el rango
-                  seleccionado.
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
+
+                <div className="flex flex-wrap items-center gap-4">
                   <button
                     type="button"
                     onClick={handleDownload}
                     disabled={isDownloading}
-                    className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-200/60 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="flex-1 rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-bold text-white shadow-xl shadow-emerald-100 transition-all hover:bg-emerald-700 hover:shadow-emerald-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 sm:flex-none"
                   >
-                    <span className="inline-flex items-center gap-2">
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
+                    <span className="flex items-center justify-center gap-2">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                         <polyline points="7 10 12 15 17 10" />
                         <line x1="12" x2="12" y1="15" y2="3" />
                       </svg>
-                      {isDownloading ? "Descargando..." : "Descargar PDFs"}
+                      {isDownloading ? "Preparando..." : "Descargar Reportes ZIP"}
                     </span>
                   </button>
                   {downloadError && (
-                    <span className="rounded-full bg-red-50 px-3 py-2 text-xs text-red-600">
-                      {downloadError}
+                    <span className="animate-bounce rounded-xl bg-red-50 px-4 py-2 text-xs font-bold text-red-600 ring-1 ring-red-100">
+                      ⚠️ {downloadError}
                     </span>
                   )}
                 </div>
@@ -981,11 +1030,11 @@ export default function HomePage() {
               <div className="mt-4 overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-y-2 text-sm">
                   <thead>
-                <tr className="text-left text-slate-500">
-                  <th className="px-3 py-2">Fecha</th>
-                  <th className="px-3 py-2">Servicio</th>
-                  <th className="px-3 py-2">Operador</th>
-                  <th className="px-3 py-2">PDF</th>
+                    <tr className="text-left text-slate-500">
+                      <th className="px-3 py-2">Fecha</th>
+                      <th className="px-3 py-2">Servicio</th>
+                      <th className="px-3 py-2">Operador</th>
+                      <th className="px-3 py-2">PDF</th>
                       {tipo === "satisfaccion" ? (
                         <>
                           <th className="px-3 py-2">Nombres</th>
@@ -1011,65 +1060,65 @@ export default function HomePage() {
                       const payload = row.payload || {};
                       return (
                         <tr
-                      key={row.id}
-                      className="rounded-2xl bg-white shadow-sm"
-                    >
-                      <td className="px-3 py-3 text-slate-600">
-                        {formatDate(row.fecha)}
-                      </td>
-                      <td className="px-3 py-3 font-semibold text-slate-900">
-                        {row.servicio || "-"}
-                      </td>
-                      <td className="px-3 py-3 text-slate-600">
-                        {row.operator_name || "N/A"}
-                      </td>
-                      <td className="px-3 py-3 text-slate-600">
-                        {buildPdfLink(row.pdf_drive_path) ? (
-                          <div className="inline-flex items-center gap-3">
-                            <a
-                              href={buildPdfLink(row.pdf_drive_path)!}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center text-emerald-600 hover:text-emerald-700"
-                              aria-label="Ver PDF"
-                            >
-                              <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7" />
-                                <circle cx="12" cy="12" r="3" />
-                              </svg>
-                            </a>
-                            <a
-                              href={`https://wa.me/?text=${encodeURIComponent(
-                                `PDF: ${buildPdfLink(row.pdf_drive_path)}`,
-                              )}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center text-green-600 hover:text-green-700"
-                              aria-label="Enviar por WhatsApp"
-                            >
-                              <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="currentColor"
-                              >
-                                <path d="M12.04 2C6.54 2 2.07 6.47 2.07 11.97c0 1.95.52 3.85 1.5 5.52L2 22l4.66-1.53a9.9 9.9 0 0 0 5.38 1.58h.01c5.5 0 9.97-4.47 9.97-9.97S17.54 2 12.04 2Zm0 18.2h-.01a8.23 8.23 0 0 1-4.2-1.15l-.3-.18-2.77.91.93-2.7-.2-.31a8.19 8.19 0 1 1 6.55 3.43Zm4.5-5.53c-.25-.12-1.46-.72-1.69-.8-.23-.08-.4-.12-.57.12-.17.25-.66.8-.81.96-.15.17-.3.18-.55.06-.25-.12-1.05-.39-2-.84-.75-.36-1.26-.8-1.4-1.05-.15-.25-.02-.38.1-.5.12-.12.25-.3.38-.44.12-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.12-.57-1.38-.78-1.9-.2-.48-.4-.41-.57-.42h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1s.9 2.45 1.03 2.62c.12.17 1.77 2.7 4.28 3.79.6.26 1.07.41 1.44.52.6.19 1.14.16 1.57.1.48-.07 1.46-.6 1.66-1.18.2-.58.2-1.07.14-1.18-.06-.12-.23-.18-.48-.31Z" />
-                              </svg>
-                            </a>
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
+                          key={row.id}
+                          className="rounded-2xl bg-white shadow-sm"
+                        >
+                          <td className="px-3 py-3 text-slate-600">
+                            {formatDate(row.fecha)}
+                          </td>
+                          <td className="px-3 py-3 font-semibold text-slate-900">
+                            {row.servicio || "-"}
+                          </td>
+                          <td className="px-3 py-3 text-slate-600">
+                            {row.operator_name || "N/A"}
+                          </td>
+                          <td className="px-3 py-3 text-slate-600">
+                            {buildPdfLink(row.pdf_drive_path) ? (
+                              <div className="inline-flex items-center gap-3">
+                                <a
+                                  href={buildPdfLink(row.pdf_drive_path)!}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center text-emerald-600 hover:text-emerald-700"
+                                  aria-label="Ver PDF"
+                                >
+                                  <svg
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7" />
+                                    <circle cx="12" cy="12" r="3" />
+                                  </svg>
+                                </a>
+                                <a
+                                  href={`https://wa.me/?text=${encodeURIComponent(
+                                    `PDF: ${buildPdfLink(row.pdf_drive_path)}`,
+                                  )}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center text-green-600 hover:text-green-700"
+                                  aria-label="Enviar por WhatsApp"
+                                >
+                                  <svg
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                  >
+                                    <path d="M12.04 2C6.54 2 2.07 6.47 2.07 11.97c0 1.95.52 3.85 1.5 5.52L2 22l4.66-1.53a9.9 9.9 0 0 0 5.38 1.58h.01c5.5 0 9.97-4.47 9.97-9.97S17.54 2 12.04 2Zm0 18.2h-.01a8.23 8.23 0 0 1-4.2-1.15l-.3-.18-2.77.91.93-2.7-.2-.31a8.19 8.19 0 1 1 6.55 3.43Zm4.5-5.53c-.25-.12-1.46-.72-1.69-.8-.23-.08-.4-.12-.57.12-.17.25-.66.8-.81.96-.15.17-.3.18-.55.06-.25-.12-1.05-.39-2-.84-.75-.36-1.26-.8-1.4-1.05-.15-.25-.02-.38.1-.5.12-.12.25-.3.38-.44.12-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.12-.57-1.38-.78-1.9-.2-.48-.4-.41-.57-.42h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1s.9 2.45 1.03 2.62c.12.17 1.77 2.7 4.28 3.79.6.26 1.07.41 1.44.52.6.19 1.14.16 1.57.1.48-.07 1.46-.6 1.66-1.18.2-.58.2-1.07.14-1.18-.06-.12-.23-.18-.48-.31Z" />
+                                  </svg>
+                                </a>
+                              </div>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
                           {tipo === "satisfaccion" ? (
                             <>
                               <td className="px-3 py-3 text-slate-600">
