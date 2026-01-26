@@ -30,19 +30,28 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const sn = searchParams.get("sn");
 
-    let query = supabaseService.from("equipos_biomedicos").select("*");
-
     if (sn) {
-        query = query.eq("numero_serie", sn).single();
-    } else {
-        query = query.order("created_at", { ascending: false });
+        const { data, error } = await supabaseService
+            .from("equipos_biomedicos")
+            .select("*")
+            .eq("numero_serie", sn)
+            .maybeSingle();
+
+        if (error) {
+            return NextResponse.json({ error: error.message }, { status: 500, headers });
+        }
+
+        return NextResponse.json({ data: data ?? null }, { headers });
     }
 
-    const { data, error } = await query;
+    const { data, error } = await supabaseService
+        .from("equipos_biomedicos")
+        .select("*")
+        .order("created_at", { ascending: false });
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500, headers });
     }
 
-    return NextResponse.json({ data: data ?? (sn ? null : []) }, { headers });
+    return NextResponse.json({ data: data ?? [] }, { headers });
 }
